@@ -8,7 +8,7 @@ import dash_bootstrap_components as dbc
 import plotly.express as px
 from sklearn.preprocessing import LabelEncoder
 
-# Cargar el modelo entrenado
+# Cargar el modelo entrenado  
 with open("modelo_polynomial.pkl", "rb") as f:
     coeficientes, intercepto, poly, X_scaler3, y_scaler3, nombres_features = pickle.load(f)
 
