@@ -16,15 +16,18 @@ with open("modelo_polynomial.pkl", "rb") as f:
 file_path = "datos_apartamentos_rent.csv"
 df = pd.read_csv(file_path, encoding="latin1", sep=";")
 
-# Eliminar valores NaN en la columna 'state'
-df = df.dropna(subset=['state'])
+# Eliminar valores NaN en las columnas 'state' y 'cityname'
+df = df.dropna(subset=['state', 'cityname'])
 
-# Aplicar LabelEncoder a la columna 'state'
-label_encoder = LabelEncoder()
-df['state_encoded'] = label_encoder.fit_transform(df['state'])
+# Aplicar LabelEncoder a las columnas 'state' y 'cityname'
+state_encoder = LabelEncoder()
+df['state_encoded'] = state_encoder.fit_transform(df['state'])
+city_encoder = LabelEncoder()
+df['city_encoded'] = city_encoder.fit_transform(df['cityname'])
 
-# Obtener los estados únicos y sus valores asignados
-state_options = [{'label': state, 'value': code} for state, code in zip(label_encoder.classes_, label_encoder.transform(label_encoder.classes_))]
+# Obtener los estados y ciudades únicos con sus valores asignados
+state_options = [{'label': state, 'value': code} for state, code in zip(state_encoder.classes_, state_encoder.transform(state_encoder.classes_))]
+city_options = [{'label': city, 'value': code} for city, code in zip(city_encoder.classes_, city_encoder.transform(city_encoder.classes_))]
 
 # Crear un mapa de selección de estados sin la barra de color
 fig = px.choropleth(
@@ -54,6 +57,8 @@ app.layout = dbc.Container([
     dcc.Input(id='input-bedrooms', type='number', value=1, step=1),
     html.Label("Seleccione el estado:"),
     dcc.Dropdown(id='input-state', options=state_options, value=state_options[0]['value']),
+    html.Label("Seleccione la ciudad:"),
+    dcc.Dropdown(id='input-city', options=city_options, value=city_options[0]['value']),
     html.Button('Predecir', id='predict-button', n_clicks=0),
     html.H3(id='prediction-output', style={'marginTop': '20px'})
 ])
@@ -66,7 +71,7 @@ app.layout = dbc.Container([
 def update_selected_state(click_data):
     if click_data:
         state_abbr = click_data['points'][0]['location']
-        state_code = label_encoder.transform([state_abbr])[0]
+        state_code = state_encoder.transform([state_abbr])[0]
         return state_code
     return state_options[0]['value']
 
@@ -78,9 +83,10 @@ def update_selected_state(click_data):
     Input('input-longitude', 'value'),
     Input('input-bathrooms', 'value'),
     Input('input-bedrooms', 'value'),
-    Input('input-state', 'value')
+    Input('input-state', 'value'),
+    Input('input-city', 'value')
 )
-def predict(n_clicks, latitude, longitude, bathrooms, bedrooms, state):
+def predict(n_clicks, latitude, longitude, bathrooms, bedrooms, state, city):
     if n_clicks > 0:
         try:
             # Crear el DataFrame con los valores de entrada
@@ -90,7 +96,7 @@ def predict(n_clicks, latitude, longitude, bathrooms, bedrooms, state):
                 "bathrooms": [bathrooms],
                 "bedrooms": [bedrooms],
                 "square_feet": [200],
-                "cityname": [1100],
+                "cityname": [city],
                 "state": [state],
                 'amenities_count': [1],
                 'pets_allowed_Cats,Dogs': [0],
