@@ -29,6 +29,15 @@ df['city_encoded'] = city_encoder.fit_transform(df['cityname'])
 state_options = [{'label': state, 'value': code} for state, code in zip(state_encoder.classes_, state_encoder.transform(state_encoder.classes_))]
 city_options = [{'label': city, 'value': code} for city, code in zip(city_encoder.classes_, city_encoder.transform(city_encoder.classes_))]
 
+# Opciones de fuentes de publicación
+source_sites = {
+    "source_ListedBuy": "ListedBuy",
+    "source_RentDigs.com": "RentDigs.com",
+    "source_RentLingo": "RentLingo",
+    "source_Listanza": "Listanza"
+}
+source_options = [{'label': name, 'value': key} for key, name in source_sites.items()]
+
 # Crear un mapa de selección de estados sin la barra de color
 fig = px.choropleth(
     df,
@@ -55,25 +64,26 @@ app.layout = dbc.Container([
     dcc.Input(id='input-bathrooms', type='number', value=1, step=1),
     html.Label("Ingrese la cantidad de habitaciones:"),
     dcc.Input(id='input-bedrooms', type='number', value=1, step=1),
+    html.Label("Ingrese los pies cuadrados:"),
+    dcc.Input(id='input-square-feet', type='number', value=200, step=10),
     html.Label("Seleccione el estado:"),
     dcc.Dropdown(id='input-state', options=state_options, value=state_options[0]['value']),
     html.Label("Seleccione la ciudad:"),
     dcc.Dropdown(id='input-city', options=city_options, value=city_options[0]['value']),
+    html.Label("¿Se permiten mascotas?"),
+    dcc.RadioItems(id='input-pets', options=[{'label': 'Sí', 'value': 1}, {'label': 'No', 'value': 0}], value=0),
+    html.Label("Seleccione la fuente de publicación:"),
+    dcc.Dropdown(id='input-source', options=source_options, value=list(source_sites.keys())[0]),
+    html.Label("Seleccione la categoría del inmueble:"),
+    dcc.RadioItems(id='input-category', options=[
+        {'label': 'Vivienda en renta', 'value': 'home'},
+        {'label': 'Alquiler a corto plazo', 'value': 'short_term'}
+    ], value='home'),
+    html.Label("¿Tiene fotos?"),
+    dcc.RadioItems(id='input-photos', options=[{'label': 'Sí', 'value': 1}, {'label': 'No', 'value': 0}], value=1),
     html.Button('Predecir', id='predict-button', n_clicks=0),
     html.H3(id='prediction-output', style={'marginTop': '20px'})
 ])
-
-# Callback para actualizar el estado seleccionado desde el mapa
-@app.callback(
-    Output("input-state", "value"),
-    Input("state-map", "clickData")
-)
-def update_selected_state(click_data):
-    if click_data:
-        state_abbr = click_data['points'][0]['location']
-        state_code = state_encoder.transform([state_abbr])[0]
-        return state_code
-    return state_options[0]['value']
 
 # Callback para actualizar la predicción
 @app.callback(
@@ -83,32 +93,42 @@ def update_selected_state(click_data):
     Input('input-longitude', 'value'),
     Input('input-bathrooms', 'value'),
     Input('input-bedrooms', 'value'),
+    Input('input-square-feet', 'value'),
     Input('input-state', 'value'),
-    Input('input-city', 'value')
+    Input('input-city', 'value'),
+    Input('input-pets', 'value'),
+    Input('input-source', 'value'),
+    Input('input-category', 'value'),
+    Input('input-photos', 'value')
 )
-def predict(n_clicks, latitude, longitude, bathrooms, bedrooms, state, city):
+def predict(n_clicks, latitude, longitude, bathrooms, bedrooms, square_feet, state, city, pets, source, category, photos):
     if n_clicks > 0:
         try:
+            # Asignar 1 a la fuente seleccionada y 0 a las demás
+            source_dict = {key: 1 if key == source else 0 for key in source_sites.keys()}
+            
+            # Asignar categoría seleccionada
+            category_dict = {
+                "category_housing/rent/home": 1 if category == 'home' else 0,
+                "category_housing/rent/short_term": 1 if category == 'short_term' else 0
+            }
+            
             # Crear el DataFrame con los valores de entrada
             ejemplo = pd.DataFrame({
                 "latitude": [latitude],
                 "longitude": [longitude],
                 "bathrooms": [bathrooms],
                 "bedrooms": [bedrooms],
-                "square_feet": [200],
+                "square_feet": [square_feet],
                 "cityname": [city],
                 "state": [state],
                 'amenities_count': [1],
-                'pets_allowed_Cats,Dogs': [0],
-                'pets_allowed_No': [1],
-                'source_ListedBuy': [0],
-                'source_RentDigs.com': [0],
-                'source_RentLingo': [1],
-                "source_Listanza": [0],
-                "has_photo_Thumbnail": [1],
-                "has_photo_Yes": [0],
-                "category_housing/rent/home": [0],
-                "category_housing/rent/short_term": [0]
+                'pets_allowed_Cats,Dogs': [pets],
+                'pets_allowed_No': [1 - pets],
+                **source_dict,
+                **category_dict,
+                "has_photo_Thumbnail": [photos],
+                "has_photo_Yes": [photos]
             })
             
             ejemplo_scaled = X_scaler3.transform(ejemplo)
@@ -123,6 +143,10 @@ def predict(n_clicks, latitude, longitude, bathrooms, bedrooms, state, city):
 
 if __name__ == '__main__':
     app.run_server(debug=True)
+
+
+
+
 
 
 
