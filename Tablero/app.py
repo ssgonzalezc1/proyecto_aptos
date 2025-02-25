@@ -53,7 +53,7 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 # Diseño de la aplicación
 app.layout = dbc.Container([
-    html.H1("Predicción precio de un apartamento"),
+    html.H1("Predicción del precio de un apartamento"),
     dcc.Graph(id="state-map", figure=fig),
     dcc.Store(id="selected-state"),
     html.Label("Ingrese la latitud:"),
